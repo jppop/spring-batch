@@ -1,25 +1,31 @@
-package hello;
+package org.sample.batch;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.annotation.OnSkipInProcess;
 import org.springframework.batch.core.annotation.OnSkipInRead;
-import org.springframework.batch.item.ItemWriter;
+import org.springframework.batch.item.file.FlatFileParseException;
 
 import java.util.Collections;
 
 public class SkipListener {
 
     private static final Logger log = LoggerFactory.getLogger(SkipListener.class);
-    private final ItemWriter<Person> errorItemWriter;
+    private final FlatFileItemWriterEx<Person> errorItemWriter;
 
-    public SkipListener(ItemWriter<Person> errorItemWriter) {
+    public SkipListener(FlatFileItemWriterEx<Person> errorItemWriter) {
         this.errorItemWriter = errorItemWriter;
     }
 
     @OnSkipInRead
     public void onSkipInProcess(java.lang.Throwable t) throws Exception {
         log.info("Skipping read due to error: {}", t.getMessage());
+        if (t instanceof FlatFileParseException) {
+            FlatFileParseException ffpe = (FlatFileParseException) t;
+            StringBuilder line = new StringBuilder(ffpe.getInput());
+            line.append(";").append("1000");
+            errorItemWriter.writeRaw(Collections.singletonList(line.toString()));
+        }
     }
 
     @OnSkipInProcess

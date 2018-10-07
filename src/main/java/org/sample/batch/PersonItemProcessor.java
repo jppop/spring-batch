@@ -1,11 +1,9 @@
-package hello;
+package org.sample.batch;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.springframework.batch.item.ItemProcessor;
-
-import java.util.IllegalFormatException;
 
 public class PersonItemProcessor implements ItemProcessor<Person, Person> {
 

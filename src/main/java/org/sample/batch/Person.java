@@ -1,4 +1,4 @@
-package hello;
+package org.sample.batch;
 
 public class Person {
 
