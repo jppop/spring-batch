@@ -23,7 +23,7 @@ public class SkipListener {
         if (t instanceof FlatFileParseException) {
             FlatFileParseException ffpe = (FlatFileParseException) t;
             StringBuilder line = new StringBuilder(ffpe.getInput());
-            line.append(";").append("1000");
+            line.append(";[E];").append("1000");
             errorItemWriter.writeRaw(Collections.singletonList(line.toString()));
         }
     }

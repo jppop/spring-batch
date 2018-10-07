@@ -8,7 +8,6 @@ import org.springframework.batch.core.configuration.annotation.EnableBatchProces
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
-import org.springframework.batch.item.ItemStreamWriter;
 import org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider;
 import org.springframework.batch.item.database.JdbcBatchItemWriter;
 import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilder;
@@ -17,8 +16,11 @@ import org.springframework.batch.item.file.FlatFileItemWriter;
 import org.springframework.batch.item.file.FlatFileParseException;
 import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
 import org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper;
+import org.springframework.batch.item.file.mapping.DefaultLineMapper;
+import org.springframework.batch.item.file.mapping.FieldSetMapper;
 import org.springframework.batch.item.file.transform.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.bind.BindException;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
@@ -37,15 +39,33 @@ public class BatchConfiguration {
     // tag::readerwriterprocessor[]
     @Bean
     public FlatFileItemReader<Person> reader() {
+        FieldSetMapper<Person> personMapper = new FieldSetMapper<Person>() {
+            @Override
+            public Person mapFieldSet(FieldSet fieldSet) throws BindException {
+                Person person = new Person();
+                person.setFirstName(fieldSet.readString("firstName"));
+                person.setLastName(fieldSet.readString("lastName"));
+                person.setAge(fieldSet.readInt("age"));
+                return person;
+            }
+        };
         return new FlatFileItemReaderBuilder<Person>()
                 .name("personItemReader")
                 .resource(new ClassPathResource("sample-data.csv"))
-                .delimited()
-                .delimiter(";")
-                .names(new String[]{"firstName", "lastName", "age"})
-                .fieldSetMapper(new BeanWrapperFieldSetMapper<Person>() {{
-                    setTargetType(Person.class);
-                }})
+                .lineMapper(new DefaultLineMapper<Person>() {
+                    {
+                        setLineTokenizer(new DelimitedLineTokenizer() {
+                            {
+                                setStrict(false);
+                                setDelimiter(";");
+                                setNames(new String[] { "firstName", "lastName", "age" });
+                            }
+                        });
+                        setFieldSetMapper(new BeanWrapperFieldSetMapper<Person>() {{
+                            setTargetType(Person.class);
+                        }});
+                    }
+                })
                 .linesToSkip(1)
                 .build();
     }
@@ -116,7 +136,7 @@ public class BatchConfiguration {
                 .processor(processor())
                 .writer(writer)
                 .faultTolerant()
-                .skipLimit(2)
+                .skipLimit(3)
                 .skip(IllegalArgumentException.class)
                 .skip(FlatFileParseException.class)
                 .stream(errorItemWriter)
