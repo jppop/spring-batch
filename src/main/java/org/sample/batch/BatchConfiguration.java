@@ -39,16 +39,6 @@ public class BatchConfiguration {
     // tag::readerwriterprocessor[]
     @Bean
     public FlatFileItemReader<Person> reader() {
-        FieldSetMapper<Person> personMapper = new FieldSetMapper<Person>() {
-            @Override
-            public Person mapFieldSet(FieldSet fieldSet) throws BindException {
-                Person person = new Person();
-                person.setFirstName(fieldSet.readString("firstName"));
-                person.setLastName(fieldSet.readString("lastName"));
-                person.setAge(fieldSet.readInt("age"));
-                return person;
-            }
-        };
         return new FlatFileItemReaderBuilder<Person>()
                 .name("personItemReader")
                 .resource(new ClassPathResource("sample-data.csv"))
@@ -106,7 +96,7 @@ public class BatchConfiguration {
         FlatFileItemWriterEx<Person> errorItemWriter = new FlatFileItemWriterEx<>();
         FlatFileItemWriter<String> csvFileWriter = new FlatFileItemWriter<>();
 
-        String exportFileHeader = "firstName;lastName;age;errorCode";
+        String exportFileHeader = "firstName;lastName;age;status;errorCode";
         StringHeaderWriter headerWriter = new StringHeaderWriter(exportFileHeader);
         csvFileWriter.setHeaderCallback(headerWriter);
 
@@ -158,7 +148,7 @@ public class BatchConfiguration {
 
     private FieldExtractor<Person> createPersonFieldExtractor() {
         BeanWrapperFieldExtractor<Person> extractor = new BeanWrapperFieldExtractor<>();
-        extractor.setNames(new String[]{"firstName", "lastName", "age", "errorCode"});
+        extractor.setNames(new String[]{"firstName", "lastName", "age", "status", "errorCode"});
         return extractor;
     }
 

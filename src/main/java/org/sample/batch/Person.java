@@ -1,20 +1,23 @@
 package org.sample.batch;
 
+import org.springframework.util.StringUtils;
+
 public class Person {
 
     private String lastName;
     private String firstName;
-    private String errorCode;
-    private boolean invalid = false;
     private int age;
+    private String errorCode;
+    private String status;
 
     public Person() {
     }
 
-    public Person(String firstName, String lastName, int age) {
+    Person(String firstName, String lastName, int age) {
         this.firstName = firstName;
         this.lastName = lastName;
         this.age = age;
+        this.status = "";
     }
 
     public void setFirstName(String firstName) {
@@ -41,14 +44,6 @@ public class Person {
         this.errorCode = errorCode;
     }
 
-    public boolean isInvalid() {
-        return invalid;
-    }
-
-    public void setInvalid(boolean invalid) {
-        this.invalid = invalid;
-    }
-
     public int getAge() {
         return age;
     }
@@ -57,14 +52,22 @@ public class Person {
         this.age = age;
     }
 
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
     @Override
     public String toString() {
         return "Person{" +
                 "lastName='" + lastName + '\'' +
                 ", firstName='" + firstName + '\'' +
-                ", errorCode='" + errorCode + '\'' +
-                ", invalid=" + invalid +
                 ", age=" + age +
+                ", errorCode='" + errorCode + '\'' +
+                ", status='" + status + '\'' +
                 '}';
     }
 }

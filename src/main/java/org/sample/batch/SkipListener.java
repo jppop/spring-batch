@@ -23,7 +23,7 @@ public class SkipListener {
         if (t instanceof FlatFileParseException) {
             FlatFileParseException ffpe = (FlatFileParseException) t;
             StringBuilder line = new StringBuilder(ffpe.getInput());
-            line.append(";[E];").append("1000");
+            line.append(";[E(p)];").append("1000");
             errorItemWriter.writeRaw(Collections.singletonList(line.toString()));
         }
     }
@@ -31,7 +31,7 @@ public class SkipListener {
     @OnSkipInProcess
     public void onSkipInProcess(Person person, java.lang.Throwable t) throws Exception {
         log.info("Skipping {} due to error: {}", person, t.getMessage());
-        person.setInvalid(true);
+        person.setStatus("[E(r)]");
         person.setErrorCode("9999");
         errorItemWriter.write(Collections.singletonList(person));
     }
