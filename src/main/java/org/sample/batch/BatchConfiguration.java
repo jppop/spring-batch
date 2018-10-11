@@ -1,12 +1,11 @@
 package org.sample.batch;
 
-import javax.sql.DataSource;
-
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider;
 import org.springframework.batch.item.database.JdbcBatchItemWriter;
@@ -17,14 +16,16 @@ import org.springframework.batch.item.file.FlatFileParseException;
 import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
 import org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper;
 import org.springframework.batch.item.file.mapping.DefaultLineMapper;
-import org.springframework.batch.item.file.mapping.FieldSetMapper;
 import org.springframework.batch.item.file.transform.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.context.properties.bind.BindException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.PathResource;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import javax.sql.DataSource;
 
 @Configuration
 @EnableBatchProcessing
@@ -38,10 +39,11 @@ public class BatchConfiguration {
 
     // tag::readerwriterprocessor[]
     @Bean
-    public FlatFileItemReader<Person> reader() {
+    @StepScope
+    public FlatFileItemReader<Person> reader(@Value("#{jobParameters['inputFile']}") String inputFile) {
         return new FlatFileItemReaderBuilder<Person>()
                 .name("personItemReader")
-                .resource(new ClassPathResource("sample-data.csv"))
+                .resource(new PathResource(inputFile))
                 .lineMapper(new DefaultLineMapper<Person>() {
                     {
                         setLineTokenizer(new DelimitedLineTokenizer() {
@@ -74,6 +76,11 @@ public class BatchConfiguration {
                 .build();
     }
     // end::readerwriterprocessor[]
+
+    @Bean
+    public JobCompletionNotificationListener jobCompletionNotificationListener(JdbcTemplate jdbcTemplate) {
+        return new JobCompletionNotificationListener(jdbcTemplate);
+    }
 
     // tag::jobstep[]
     @Bean
@@ -119,10 +126,10 @@ public class BatchConfiguration {
     }
 
     @Bean
-    public Step step1(JdbcBatchItemWriter<Person> writer, ChunkListener chunkListener, SkipListener skipListner, FlatFileItemWriterEx<Person> errorItemWriter) {
+    public Step step1(String inputFile, JdbcBatchItemWriter<Person> writer, ChunkListener chunkListener, SkipListener skipListner, FlatFileItemWriterEx<Person> errorItemWriter) {
         return stepBuilderFactory.get("step1")
                 .<Person, Person>chunk(2)
-                .reader(reader())
+                .reader(reader("should be overriden by spel"))
                 .processor(processor())
                 .writer(writer)
                 .faultTolerant()
