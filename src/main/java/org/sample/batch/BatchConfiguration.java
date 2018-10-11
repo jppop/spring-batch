@@ -126,7 +126,7 @@ public class BatchConfiguration {
     }
 
     @Bean
-    public Step step1(String inputFile, JdbcBatchItemWriter<Person> writer, ChunkListener chunkListener, SkipListener skipListner, FlatFileItemWriterEx<Person> errorItemWriter) {
+    public Step step1(JdbcBatchItemWriter<Person> writer, ChunkListener chunkListener, SkipListener skipListner, FlatFileItemWriterEx<Person> errorItemWriter) {
         return stepBuilderFactory.get("step1")
                 .<Person, Person>chunk(2)
                 .reader(reader("should be overriden by spel"))

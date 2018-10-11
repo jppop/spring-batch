@@ -17,19 +17,20 @@ import static org.junit.Assert.assertEquals;
 @SpringBootTest(classes = {BatchConfiguration.class, TestConfig.class})
 public class ApplicationTest {
 
-    @Autowired
+    private static final String SAMPLE_DATA_PATH = "src/main/resources/sample-data.csv";
+	@Autowired
     private JobLauncherTestUtils jobLauncherTestUtils;
 
     @Test
     public void shouldBeSuccessfully() throws Exception {
-        JobParameters params = new JobParametersBuilder().addString("inputFile", "src/resources/sample-data.csv").toJobParameters();
+        JobParameters params = new JobParametersBuilder().addString("inputFile", SAMPLE_DATA_PATH).toJobParameters();
         BatchStatus batchStatus = jobLauncherTestUtils.launchJob(params).getStatus();
         assertEquals(BatchStatus.COMPLETED, batchStatus);
     }
 
     @Test(expected = JobInstanceAlreadyCompleteException.class)
     public void shouldNotBeReExecuted() throws Exception {
-        JobParameters params = new JobParametersBuilder().addString("inputFile", "src/resources/sample-data.csv").toJobParameters();
+        JobParameters params = new JobParametersBuilder().addString("inputFile", SAMPLE_DATA_PATH).toJobParameters();
         BatchStatus batchStatus = jobLauncherTestUtils.launchJob(params).getStatus();
         assertEquals(BatchStatus.COMPLETED, batchStatus);
 
