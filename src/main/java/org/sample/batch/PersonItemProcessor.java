@@ -14,8 +14,8 @@ public class PersonItemProcessor implements ItemProcessor<Person, Person> {
         final String firstName = person.getFirstName().toUpperCase();
         final String lastName = person.getLastName().toUpperCase();
 
-        if ("X".equals(firstName)) {
-            throw new IllegalArgumentException("x not allowed");
+        if (person.getAge() == 0) {
+            throw new InvalidDataException("must be born");
         }
         final Person transformedPerson = new Person(firstName, lastName, person.getAge());
 
