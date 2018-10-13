@@ -24,6 +24,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.PathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
+import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
+import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
 
 import javax.sql.DataSource;
 
@@ -36,6 +39,16 @@ public class BatchConfiguration {
 
     @Autowired
     public StepBuilderFactory stepBuilderFactory;
+
+    @Bean
+    public DataSource dataSource() {
+        EmbeddedDatabaseBuilder builder = new EmbeddedDatabaseBuilder();
+        EmbeddedDatabase db = builder
+                .setType(EmbeddedDatabaseType.HSQL) //.H2 or .DERBY
+                .addScripts("schema-all.sql")
+                .build();
+        return db;
+    }
 
     // tag::readerwriterprocessor[]
     @Bean
@@ -68,11 +81,11 @@ public class BatchConfiguration {
     }
 
     @Bean
-    public JdbcBatchItemWriter<Person> writer(DataSource dataSource) {
+    public JdbcBatchItemWriter<Person> writer() {
         return new JdbcBatchItemWriterBuilder<Person>()
                 .itemSqlParameterSourceProvider(new BeanPropertyItemSqlParameterSourceProvider<>())
                 .sql("INSERT INTO people (first_name, last_name, age) VALUES (:firstName, :lastName, :age)")
-                .dataSource(dataSource)
+                .dataSource(dataSource())
                 .build();
     }
     // end::readerwriterprocessor[]
@@ -96,6 +109,11 @@ public class BatchConfiguration {
     @Bean
     public ChunkListener chunkListener() {
         return new ChunkListener();
+    }
+
+    @Bean
+    public SkipListener skipListener() {
+        return new SkipListener(errorItemWriter());
     }
 
     @Bean
@@ -126,19 +144,19 @@ public class BatchConfiguration {
     }
 
     @Bean
-    public Step step1(JdbcBatchItemWriter<Person> writer, ChunkListener chunkListener, SkipListener skipListner, FlatFileItemWriterEx<Person> errorItemWriter) {
+    public Step step1() {
         return stepBuilderFactory.get("step1")
                 .<Person, Person>chunk(2)
                 .reader(reader("should be overriden by spel"))
                 .processor(processor())
-                .writer(writer)
+                .writer(writer())
                 .faultTolerant()
                 .skipLimit(2)
                 .skip(InvalidDataException.class)
                 .skip(FlatFileParseException.class)
-                .stream(errorItemWriter)
-                .listener(chunkListener)
-                .listener(skipListner)
+                .stream(errorItemWriter())
+                .listener(chunkListener())
+                .listener(skipListener())
                 .build();
     }
     // end::jobstep[]
