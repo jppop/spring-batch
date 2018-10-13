@@ -1,5 +1,6 @@
 package org.sample.batch;
 
+import org.apache.logging.log4j.util.Strings;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.*;
@@ -36,6 +37,8 @@ import java.nio.file.Paths;
 @Configuration
 @EnableBatchProcessing
 public class PartitionBatchConfiguration {
+
+    public static final String SHOULD_BE_OVERRIDDEN = "should be overridden";
 
     @Autowired
     public JobBuilderFactory jobBuilderFactory;
@@ -103,14 +106,27 @@ public class PartitionBatchConfiguration {
 
     @Bean
     @JobScope
-    public CustomMultiResourcePartitioner partitioner(@Value("#{jobParameters['inboundsDir']}") String inboudsDirJobParam) {
+    public CustomMultiResourcePartitioner partitioner(
+            @Value("#{jobParameters['input.dir']}") String inboudsDirJobParam,
+            @Value("#{jobParameters['input.file']}") String inputFile
+            ) {
         CustomMultiResourcePartitioner partitioner = new CustomMultiResourcePartitioner();
         Resource[] resources;
-        try {
-            String locationPattern = "file://" + Paths.get(inboudsDirJobParam,"*.csv").toString();
-            resources = resoursePatternResolver.getResources(locationPattern);
-        } catch (IOException e) {
-            throw new RuntimeException("I/O problems when resolving the input file pattern.", e);
+        if (!Strings.isBlank(inboudsDirJobParam)) {
+            try {
+                String locationPattern = "file://" + Paths.get(inboudsDirJobParam,"*.csv").toString();
+                resources = resoursePatternResolver.getResources(locationPattern);
+            } catch (IOException e) {
+                throw new RuntimeException("I/O problems when resolving the input file pattern.", e);
+            }
+
+        } else if (!Strings.isBlank(inputFile)) {
+
+            Resource resource = new PathResource(inputFile);
+            resources = new Resource[] { resource };
+
+        } else {
+            throw new RuntimeException("Either 'input.dir' or 'input.file' is mandatory");
         }
         partitioner.setResources(resources);
         return partitioner;
@@ -120,7 +136,7 @@ public class PartitionBatchConfiguration {
     @Bean
     public Step partitionStep() {
         return stepBuilderFactory.get("partitionStep")
-                .partitioner("slaveStep", partitioner("should be overridden"))
+                .partitioner("slaveStep", partitioner(SHOULD_BE_OVERRIDDEN, SHOULD_BE_OVERRIDDEN))
                 .step(step1())
                 .taskExecutor(taskExecutor())
                 .build();
@@ -143,14 +159,12 @@ public class PartitionBatchConfiguration {
 
     @Bean
     public SkipListener skipListener() {
-        return new SkipListener(errorItemWriter());
+        return new SkipListener(errorItemWriter(SHOULD_BE_OVERRIDDEN));
     }
 
     @Bean
-    public StepExecutionListener stepExecutionListener() { return new StepExecutionListener(); }
-
-    @Bean
-    public FlatFileItemWriterDual<Person> errorItemWriter() {
+    @StepScope
+    public FlatFileItemWriterDual<Person> errorItemWriter(@Value("#{stepExecutionContext['output.error.file']}") String outputFile) {
         FlatFileItemWriterDual<Person> errorItemWriter = new FlatFileItemWriterDual<>();
         FlatFileItemWriter<String> csvFileWriter = new FlatFileItemWriter<>();
 
@@ -158,8 +172,7 @@ public class PartitionBatchConfiguration {
         StringHeaderWriter headerWriter = new StringHeaderWriter(exportFileHeader);
         csvFileWriter.setHeaderCallback(headerWriter);
 
-        String exportFilePath = "error.csv";
-        csvFileWriter.setResource(new FileSystemResource(exportFilePath));
+        csvFileWriter.setResource(new FileSystemResource(outputFile));
         DelimitedLineAggregator<String> rawLineAggregator = new DelimitedLineAggregator<>();
         rawLineAggregator.setDelimiter(";");
         csvFileWriter.setLineAggregator(rawLineAggregator);
@@ -180,15 +193,15 @@ public class PartitionBatchConfiguration {
     public Step step1() {
         return stepBuilderFactory.get("step1")
                 .<Person, Person>chunk(2)
-                .reader(reader("should be overriden by spel"))
+                .reader(reader(SHOULD_BE_OVERRIDDEN))
                 .processor(processor())
                 .writer(writer())
                 .faultTolerant()
                 .skipLimit(2)
                 .skip(InvalidDataException.class)
                 .skip(FlatFileParseException.class)
-                .stream(errorItemWriter())
-                .listener(stepExecutionListener())
+                .stream(errorItemWriter(SHOULD_BE_OVERRIDDEN))
+//                .listener(stepExecutionListener())
                 .listener(chunkListener())
                 .listener(skipListener())
                 .build();
