@@ -25,8 +25,8 @@ import static org.junit.Assert.assertEquals;
 @SpringBootTest(classes = {BatchConfiguration.class, TestConfig.class})
 public class ApplicationTest {
 
-    private static final String SAMPLE_DATA_PATH = "src/main/resources/sample-data.csv";
     public static final String COUNT_PEOPLE = "SELECT COUNT(*) FROM PEOPLE";
+    public static final String INPUT_FILE_PARAM = "input.file";
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -48,7 +48,7 @@ public class ApplicationTest {
         List<Person> persons = personFaker.buildPersons(10, new Integer[]{3, 7});
         personFaker.writeCsvOfPerson(dataFile.getAbsolutePath(), persons);
 
-        JobParameters params = new JobParametersBuilder().addString("inputFile", dataFile.getAbsolutePath()).toJobParameters();
+        JobParameters params = new JobParametersBuilder().addString(INPUT_FILE_PARAM, dataFile.getAbsolutePath()).toJobParameters();
         BatchStatus batchStatus = jobLauncherTestUtils.launchJob(params).getStatus();
         assertEquals(BatchStatus.COMPLETED, batchStatus);
 
@@ -60,7 +60,12 @@ public class ApplicationTest {
 
     @Test(expected = JobInstanceAlreadyCompleteException.class)
     public void shouldNotBeReExecuted() throws Exception {
-        JobParameters params = new JobParametersBuilder().addString("inputFile", SAMPLE_DATA_PATH).toJobParameters();
+        File dataFile = folder.newFile("data.csv");
+        PersonFaker personFaker = new PersonFaker();
+        List<Person> persons = personFaker.buildPersons(10, new Integer[]{3, 7});
+        personFaker.writeCsvOfPerson(dataFile.getAbsolutePath(), persons);
+
+        JobParameters params = new JobParametersBuilder().addString(INPUT_FILE_PARAM, dataFile.getAbsolutePath()).toJobParameters();
         BatchStatus batchStatus = jobLauncherTestUtils.launchJob(params).getStatus();
         assertEquals(BatchStatus.COMPLETED, batchStatus);
 
@@ -68,14 +73,14 @@ public class ApplicationTest {
     }
 
     @Test
-    public void shouldBeFailed() throws Exception {
+    public void shouldBeFailedWhenTooManyErrors() throws Exception {
 
         File dataFile = folder.newFile("data.csv");
 	    PersonFaker personFaker = new PersonFaker();
         List<Person> persons = personFaker.buildPersons(10, new Integer[]{3, 7, 9});
 	    personFaker.writeCsvOfPerson(dataFile.getAbsolutePath(), persons);
 
-        JobParameters params = new JobParametersBuilder().addString("inputFile", dataFile.getAbsolutePath()).toJobParameters();
+        JobParameters params = new JobParametersBuilder().addString(INPUT_FILE_PARAM, dataFile.getAbsolutePath()).toJobParameters();
         BatchStatus batchStatus = jobLauncherTestUtils.launchJob(params).getStatus();
         assertEquals(BatchStatus.FAILED, batchStatus);
         long result = jdbcTemplate.queryForObject(COUNT_PEOPLE, Long.class);
@@ -90,7 +95,7 @@ public class ApplicationTest {
         List<Person> persons = personFaker.buildPersons(10, new Integer[]{3, 7, 9});
         personFaker.writeCsvOfPerson(dataFile.getAbsolutePath(), persons);
 
-        JobParameters params = new JobParametersBuilder().addString("inputFile", dataFile.getAbsolutePath()).toJobParameters();
+        JobParameters params = new JobParametersBuilder().addString(INPUT_FILE_PARAM, dataFile.getAbsolutePath()).toJobParameters();
         BatchStatus batchStatus = jobLauncherTestUtils.launchJob(params).getStatus();
         assertEquals(BatchStatus.FAILED, batchStatus);
         long result = jdbcTemplate.queryForObject(COUNT_PEOPLE, Long.class);
@@ -116,7 +121,7 @@ public class ApplicationTest {
         personFaker.writeCsvOfPerson(fixedFile.getAbsolutePath(), fixedPersons);
 
         // start job with fixed file
-        JobParameters fixedParams = new JobParametersBuilder().addString("inputFile", fixedFile.getAbsolutePath()).toJobParameters();
+        JobParameters fixedParams = new JobParametersBuilder().addString(INPUT_FILE_PARAM, fixedFile.getAbsolutePath()).toJobParameters();
         batchStatus = jobLauncherTestUtils.launchJob(fixedParams).getStatus();
         assertEquals(BatchStatus.COMPLETED, batchStatus);
         result = jdbcTemplate.queryForObject(COUNT_PEOPLE, Long.class);

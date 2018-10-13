@@ -22,7 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 @RunWith(SpringJUnit4ClassRunner.class)
-@SpringBootTest(classes = {PartitionBatchConfiguration.class, TestConfig.class})
+@SpringBootTest(classes = {BatchConfiguration.class, TestConfig.class})
 public class ApplicationPartitionTest {
 
     private static final String SAMPLE_DATA_PATH = "src/main/resources/sample-data.csv";
