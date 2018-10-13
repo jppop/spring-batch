@@ -11,9 +11,9 @@ import java.util.Collections;
 public class SkipListener {
 
     private static final Logger log = LoggerFactory.getLogger(SkipListener.class);
-    private final FlatFileItemWriterEx<Person> errorItemWriter;
+    private final FlatFileItemWriterDual<Person> errorItemWriter;
 
-    public SkipListener(FlatFileItemWriterEx<Person> errorItemWriter) {
+    public SkipListener(FlatFileItemWriterDual<Person> errorItemWriter) {
         this.errorItemWriter = errorItemWriter;
     }
 

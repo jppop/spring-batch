@@ -10,14 +10,19 @@ import org.springframework.batch.item.file.transform.LineAggregator;
 import java.util.ArrayList;
 import java.util.List;
 
-public class FlatFileItemWriterEx<T> implements ItemStreamWriter<T> {
+/**
+ * The class FlatFileItemWriterDual allows both 'raw' writes (Strings) and bean writes (type T).
+ *
+ * @param <T>
+ */
+public class FlatFileItemWriterDual<T> implements ItemStreamWriter<T> {
 
     private FlatFileItemWriter<String> delegate;
     private LineAggregator<T> lineAggregator;
 
-    public FlatFileItemWriterEx() {}
+    public FlatFileItemWriterDual() {}
 
-    public FlatFileItemWriterEx(FlatFileItemWriter<String> itemWriter, LineAggregator<T> lineAggregator) {
+    public FlatFileItemWriterDual(FlatFileItemWriter<String> itemWriter, LineAggregator<T> lineAggregator) {
         super();
         this.delegate = itemWriter;
         this.lineAggregator = lineAggregator;

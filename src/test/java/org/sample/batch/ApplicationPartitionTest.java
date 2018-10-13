@@ -42,7 +42,8 @@ public class ApplicationPartitionTest {
         File dataFile = dataFolder.newFile("data.csv");
         PersonFaker personFaker = new PersonFaker();
         final int expectedCount = 10;
-        List<Person> persons = personFaker.buildPersons(expectedCount, new Integer[]{3, 7});
+        final Integer[] skippedItems = new Integer[] { 3, 7 };
+        List<Person> persons = personFaker.buildPersons(expectedCount, skippedItems);
         personFaker.writeCsvOfPerson(dataFile.getAbsolutePath(), persons);
 
         JobParameters params = new JobParametersBuilder().addString("inboundsDir", dataFolder.getRoot().getAbsolutePath()).toJobParameters();
@@ -52,11 +53,11 @@ public class ApplicationPartitionTest {
         for (StepExecution stepExecution : jobExecution.getStepExecutions()) {
             assertEquals(expectedCount, stepExecution.getReadCount());
             assertEquals(expectedCount - 2, stepExecution.getWriteCount());
-            assertEquals(2, stepExecution.getSkipCount());
+            assertEquals(skippedItems.length, stepExecution.getSkipCount());
         }
 
         long result = jdbcTemplate.queryForObject(COUNT_PEOPLE, Long.class);
-        assertEquals(expectedCount - 2, result); // two items skipped
+        assertEquals(expectedCount - skippedItems.length, result); // two items skipped
 
         // TODO: check error.csv
     }

@@ -117,8 +117,8 @@ public class BatchConfiguration {
     }
 
     @Bean
-    public FlatFileItemWriterEx<Person> errorItemWriter() {
-        FlatFileItemWriterEx<Person> errorItemWriter = new FlatFileItemWriterEx<>();
+    public FlatFileItemWriterDual<Person> errorItemWriter() {
+        FlatFileItemWriterDual<Person> errorItemWriter = new FlatFileItemWriterDual<>();
         FlatFileItemWriter<String> csvFileWriter = new FlatFileItemWriter<>();
 
         String exportFileHeader = "firstName;lastName;age;status;errorCode";
@@ -139,7 +139,7 @@ public class BatchConfiguration {
     }
 
     @Bean
-    public SkipListener skipListener(FlatFileItemWriterEx<Person> errorItemWriter) {
+    public SkipListener skipListener(FlatFileItemWriterDual<Person> errorItemWriter) {
         return new SkipListener(errorItemWriter);
     }
 
