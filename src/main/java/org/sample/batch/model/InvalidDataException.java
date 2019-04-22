@@ -1,4 +1,4 @@
-package org.sample.batch;
+package org.sample.batch.model;
 
 public class InvalidDataException extends RuntimeException {
 

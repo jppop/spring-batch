@@ -1,4 +1,4 @@
-package org.sample.batch;
+package org.sample.batch.listener;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

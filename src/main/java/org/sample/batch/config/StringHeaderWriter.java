@@ -1,4 +1,4 @@
-package org.sample.batch;
+package org.sample.batch.config;
 
 import org.springframework.batch.item.file.FlatFileHeaderCallback;
  

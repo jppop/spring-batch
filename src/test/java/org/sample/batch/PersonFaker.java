@@ -4,6 +4,7 @@ import com.github.javafaker.Faker;
 import com.opencsv.CSVWriter;
 import com.opencsv.exceptions.CsvDataTypeMismatchException;
 import com.opencsv.exceptions.CsvRequiredFieldEmptyException;
+import org.sample.batch.model.Person;
 
 import java.io.FileOutputStream;
 import java.io.IOException;

@@ -5,6 +5,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
+import org.sample.batch.config.BatchConfiguration;
+import org.sample.batch.model.Person;
 import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
@@ -25,106 +27,105 @@ import static org.junit.Assert.assertEquals;
 @SpringBootTest(classes = {BatchConfiguration.class, TestConfig.class})
 public class ApplicationTest {
 
-    public static final String COUNT_PEOPLE = "SELECT COUNT(*) FROM PEOPLE";
-    public static final String INPUT_FILE_PARAM = "input.file";
+  public static final String COUNT_PEOPLE = "SELECT COUNT(*) FROM PEOPLE";
+  public static final String INPUT_FILE_PARAM = "input.file";
+  @Rule
+  public TemporaryFolder folder = new TemporaryFolder();
+  @Autowired
+  private JdbcTemplate jdbcTemplate;
+  @Autowired
+  private JobLauncherTestUtils jobLauncherTestUtils;
 
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
+  @Before
+  public void cleanUp() {
+    jdbcTemplate.update("delete from people");
+  }
 
-    @Autowired
-    private JobLauncherTestUtils jobLauncherTestUtils;
+  @Test
+  public void shouldBeSuccessfully() throws Exception {
+    File dataFile = folder.newFile("data.csv");
+    PersonFaker personFaker = new PersonFaker();
+    List<Person> persons = personFaker.buildPersons(10, new Integer[]{3, 7});
+    personFaker.writeCsvOfPerson(dataFile.getAbsolutePath(), persons);
 
-	@Before
-    public void cleanUp() {
-	    jdbcTemplate.update("delete from people");
-    }
-    @Rule
-    public TemporaryFolder folder = new TemporaryFolder();
+    JobParameters params =
+      new JobParametersBuilder().addString(INPUT_FILE_PARAM, dataFile.getAbsolutePath()).toJobParameters();
+    BatchStatus batchStatus = jobLauncherTestUtils.launchJob(params).getStatus();
+    assertEquals(BatchStatus.COMPLETED, batchStatus);
 
-    @Test
-    public void shouldBeSuccessfully() throws Exception {
-        File dataFile = folder.newFile("data.csv");
-        PersonFaker personFaker = new PersonFaker();
-        List<Person> persons = personFaker.buildPersons(10, new Integer[]{3, 7});
-        personFaker.writeCsvOfPerson(dataFile.getAbsolutePath(), persons);
+    long result = jdbcTemplate.queryForObject(COUNT_PEOPLE, Long.class);
+    assertEquals(8, result); // two items skipped
 
-        JobParameters params = new JobParametersBuilder().addString(INPUT_FILE_PARAM, dataFile.getAbsolutePath()).toJobParameters();
-        BatchStatus batchStatus = jobLauncherTestUtils.launchJob(params).getStatus();
-        assertEquals(BatchStatus.COMPLETED, batchStatus);
+    // TODO: check error.csv
+  }
 
-        long result = jdbcTemplate.queryForObject(COUNT_PEOPLE, Long.class);
-        assertEquals(8, result); // two items skipped
+  @Test(expected = JobInstanceAlreadyCompleteException.class)
+  public void shouldNotBeReExecuted() throws Exception {
+    File dataFile = folder.newFile("data.csv");
+    PersonFaker personFaker = new PersonFaker();
+    List<Person> persons = personFaker.buildPersons(10, new Integer[]{3, 7});
+    personFaker.writeCsvOfPerson(dataFile.getAbsolutePath(), persons);
 
-        // TODO: check error.csv
-    }
+    JobParameters params = new JobParametersBuilder().addString(INPUT_FILE_PARAM, dataFile.getAbsolutePath()).toJobParameters();
+    BatchStatus batchStatus = jobLauncherTestUtils.launchJob(params).getStatus();
+    assertEquals(BatchStatus.COMPLETED, batchStatus);
 
-    @Test(expected = JobInstanceAlreadyCompleteException.class)
-    public void shouldNotBeReExecuted() throws Exception {
-        File dataFile = folder.newFile("data.csv");
-        PersonFaker personFaker = new PersonFaker();
-        List<Person> persons = personFaker.buildPersons(10, new Integer[]{3, 7});
-        personFaker.writeCsvOfPerson(dataFile.getAbsolutePath(), persons);
+    jobLauncherTestUtils.launchJob(params).getStatus();
+  }
 
-        JobParameters params = new JobParametersBuilder().addString(INPUT_FILE_PARAM, dataFile.getAbsolutePath()).toJobParameters();
-        BatchStatus batchStatus = jobLauncherTestUtils.launchJob(params).getStatus();
-        assertEquals(BatchStatus.COMPLETED, batchStatus);
+  @Test
+  public void shouldBeFailedWhenTooManyErrors() throws Exception {
 
-        jobLauncherTestUtils.launchJob(params).getStatus();
-    }
+    File dataFile = folder.newFile("data.csv");
+    PersonFaker personFaker = new PersonFaker();
+    List<Person> persons = personFaker.buildPersons(10, new Integer[]{3, 7, 9});
+    personFaker.writeCsvOfPerson(dataFile.getAbsolutePath(), persons);
 
-    @Test
-    public void shouldBeFailedWhenTooManyErrors() throws Exception {
+    JobParameters params = new JobParametersBuilder().addString(INPUT_FILE_PARAM, dataFile.getAbsolutePath()).toJobParameters();
+    BatchStatus batchStatus = jobLauncherTestUtils.launchJob(params).getStatus();
+    assertEquals(BatchStatus.FAILED, batchStatus);
+    long result = jdbcTemplate.queryForObject(COUNT_PEOPLE, Long.class);
+    assertEquals(6, result); // two items skipped, the last chunk failed (chunk size is 2)
+  }
 
-        File dataFile = folder.newFile("data.csv");
-	    PersonFaker personFaker = new PersonFaker();
-        List<Person> persons = personFaker.buildPersons(10, new Integer[]{3, 7, 9});
-	    personFaker.writeCsvOfPerson(dataFile.getAbsolutePath(), persons);
+  @Test
+  public void shouldBeReprocessedWhenFixed() throws Exception {
 
-        JobParameters params = new JobParametersBuilder().addString(INPUT_FILE_PARAM, dataFile.getAbsolutePath()).toJobParameters();
-        BatchStatus batchStatus = jobLauncherTestUtils.launchJob(params).getStatus();
-        assertEquals(BatchStatus.FAILED, batchStatus);
-        long result = jdbcTemplate.queryForObject(COUNT_PEOPLE, Long.class);
-        assertEquals(6, result); // two items skipped, the last chunk failed (chunk size is 2)
-    }
+    File dataFile = folder.newFile("data.csv");
+    PersonFaker personFaker = new PersonFaker();
+    List<Person> persons = personFaker.buildPersons(10, new Integer[]{3, 7, 9});
+    personFaker.writeCsvOfPerson(dataFile.getAbsolutePath(), persons);
 
-    @Test
-    public void shouldBeReprocessedWhenFixed() throws Exception {
+    JobParameters params = new JobParametersBuilder().addString(INPUT_FILE_PARAM, dataFile.getAbsolutePath()).toJobParameters();
+    BatchStatus batchStatus = jobLauncherTestUtils.launchJob(params).getStatus();
+    assertEquals(BatchStatus.FAILED, batchStatus);
+    long result = jdbcTemplate.queryForObject(COUNT_PEOPLE, Long.class);
+    assertEquals(6, result); // two items skipped, the last chunk failed (chunk size is 2)
 
-        File dataFile = folder.newFile("data.csv");
-        PersonFaker personFaker = new PersonFaker();
-        List<Person> persons = personFaker.buildPersons(10, new Integer[]{3, 7, 9});
-        personFaker.writeCsvOfPerson(dataFile.getAbsolutePath(), persons);
+    // fix errors
+    persons.get(9).setAge(99);
+    personFaker.writeCsvOfPerson(dataFile.getAbsolutePath(), persons);
 
-        JobParameters params = new JobParametersBuilder().addString(INPUT_FILE_PARAM, dataFile.getAbsolutePath()).toJobParameters();
-        BatchStatus batchStatus = jobLauncherTestUtils.launchJob(params).getStatus();
-        assertEquals(BatchStatus.FAILED, batchStatus);
-        long result = jdbcTemplate.queryForObject(COUNT_PEOPLE, Long.class);
-        assertEquals(6, result); // two items skipped, the last chunk failed (chunk size is 2)
+    // restart job
+    batchStatus = jobLauncherTestUtils.launchJob(params).getStatus();
+    assertEquals(BatchStatus.COMPLETED, batchStatus);
+    result = jdbcTemplate.queryForObject(COUNT_PEOPLE, Long.class);
+    assertEquals(8, result); // two items skipped, the last chunk succeed
 
-        // fix errors
-        persons.get(9).setAge(99);
-        personFaker.writeCsvOfPerson(dataFile.getAbsolutePath(), persons);
+    // fix skipped errors
+    persons.get(3).setAge(100);
+    persons.get(7).setAge(101);
+    List<Person> fixedPersons = new ArrayList<>(2);
+    fixedPersons.add(persons.get(3));
+    fixedPersons.add(persons.get(7));
+    File fixedFile = folder.newFile("dataFixed.csv");
+    personFaker.writeCsvOfPerson(fixedFile.getAbsolutePath(), fixedPersons);
 
-        // restart job
-        batchStatus = jobLauncherTestUtils.launchJob(params).getStatus();
-        assertEquals(BatchStatus.COMPLETED, batchStatus);
-        result = jdbcTemplate.queryForObject(COUNT_PEOPLE, Long.class);
-        assertEquals(8, result); // two items skipped, the last chunk succeed
-
-        // fix skipped errors
-        persons.get(3).setAge(100);
-        persons.get(7).setAge(101);
-        List<Person> fixedPersons = new ArrayList<>(2);
-        fixedPersons.add(persons.get(3));
-        fixedPersons.add(persons.get(7));
-        File fixedFile = folder.newFile("dataFixed.csv");
-        personFaker.writeCsvOfPerson(fixedFile.getAbsolutePath(), fixedPersons);
-
-        // start job with fixed file
-        JobParameters fixedParams = new JobParametersBuilder().addString(INPUT_FILE_PARAM, fixedFile.getAbsolutePath()).toJobParameters();
-        batchStatus = jobLauncherTestUtils.launchJob(fixedParams).getStatus();
-        assertEquals(BatchStatus.COMPLETED, batchStatus);
-        result = jdbcTemplate.queryForObject(COUNT_PEOPLE, Long.class);
-        assertEquals(10, result);
-    }
+    // start job with fixed file
+    JobParameters fixedParams = new JobParametersBuilder().addString(INPUT_FILE_PARAM, fixedFile.getAbsolutePath()).toJobParameters();
+    batchStatus = jobLauncherTestUtils.launchJob(fixedParams).getStatus();
+    assertEquals(BatchStatus.COMPLETED, batchStatus);
+    result = jdbcTemplate.queryForObject(COUNT_PEOPLE, Long.class);
+    assertEquals(10, result);
+  }
 }

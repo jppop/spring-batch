@@ -1,5 +1,6 @@
-package org.sample.batch;
+package org.sample.batch.listener;
 
+import org.sample.batch.model.Person;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.BatchStatus;
